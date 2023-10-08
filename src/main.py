@@ -1,33 +1,29 @@
+import json
 import time
 
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import pandas as pd
-import progress
 from progress.bar import Bar
-import matplotlib.pyplot as plt
-
 from sklearn.cluster import KMeans
+from transformers import AutoTokenizer, AutoModel
 
-import os
-import json
+CHECKPOINT = "Salesforce/codet5p-110m-embedding"
+TOKENIZER = AutoTokenizer.from_pretrained(CHECKPOINT, trust_remote_code=True)
+MODEL = AutoModel.from_pretrained(CHECKPOINT, trust_remote_code=True).to("cpu")
+DEVICE = "cpu"
 
-from transformers import AutoTokenizer, AutoModelForMaskedLM, AutoModel
+BASE_READ_PATH = "./sample/"
 
 
 def generate_code_embedding(code: str):
-    tokenizer = AutoTokenizer.from_pretrained("neulab/codebert-cpp")
-    model = AutoModelForMaskedLM.from_pretrained("neulab/codebert-cpp")
-    tokens_ids = tokenizer.encode(code, add_special_tokens=True, max_length=512, padding='max_length')[:512]
-    context_embeddings = model(torch.tensor(tokens_ids)[None, :])[0]
-    return context_embeddings
+    inputs = TOKENIZER.encode(code, return_tensors="pt").to(DEVICE)
+    embedding = MODEL(inputs)[0]
+    return embedding
 
 
 def get_embeddings(file_name, max_count):
     embeddings = []
-    with open("./defect/%s" % file_name, "r") as f:
+    with open(BASE_READ_PATH + file_name, "r") as f:
         i = 0
         bar = Bar(max=get_file_length(file_name))
         bar.start()
@@ -38,7 +34,7 @@ def get_embeddings(file_name, max_count):
                 data = json.loads(line)
                 code = data["func_before"]
                 embedding = generate_code_embedding(code)
-                embeddings.append(embedding.detach().numpy().reshape(-1, 50265))
+                embeddings.append(embedding.detach().numpy().reshape(-1, 256))
             except Exception as e:
                 print(e)
                 print(i, embedding.shape)
@@ -55,8 +51,6 @@ def get_file_length(file_name):
 
 def main():
     embeddings = get_embeddings("train_0.jsonl", 100)
-    # print(embeddings.shape)
-    # np.save("./embeddings.npy", embeddings)
     return embeddings
 
 
