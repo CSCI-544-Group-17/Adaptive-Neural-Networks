@@ -4,6 +4,7 @@ import torch.optim as optim
 
 from torchmetrics.classification import BinaryF1Score
 
+
 class PytorchTopology(nn.Module):
     """
     Base class implementing Pytorch's nn.Module.
