@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from torchmetrics.classification import BinaryF1Score
+from tqdm.notebook import tqdm
 
 
 class PytorchTopology(nn.Module):
@@ -59,17 +60,20 @@ class Model:
 
     def train(self, X_train_tensor: torch.Tensor, y_train_tensor: torch.Tensor):
         loss = None
-        for epoch in range(self.__epochs):
-            for i in range(0, len(X_train_tensor), self.__batch_size):
-                X_batch = X_train_tensor[i:i + self.__batch_size]
-                y_pred = self.__topology.forward(X_batch)
-                y_batch = y_train_tensor[i:i + self.__batch_size]
-                y_batch = y_batch.reshape(-1, 1)
-                loss = self.__loss_fn(y_pred, y_batch)
-                self.__optimizer.zero_grad()
-                loss.backward()
-                self.__optimizer.step()
-            print("Finished epoch %d, latest loss %f" % (epoch, loss))
+        with tqdm(total=self.__epochs) as bar:
+            for epoch in range(self.__epochs):
+                for i in range(0, len(X_train_tensor), self.__batch_size):
+                    X_batch = X_train_tensor[i:i + self.__batch_size]
+                    y_pred = self.__topology.forward(X_batch)
+                    y_batch = y_train_tensor[i:i + self.__batch_size]
+                    y_batch = y_batch.reshape(-1, 1)
+                    loss = self.__loss_fn(y_pred, y_batch)
+                    self.__optimizer.zero_grad()
+                    loss.backward()
+                    self.__optimizer.step()
+                bar.set_description("Loss: %f" % loss)
+                bar.update()
+                # print("Finished epoch %d, latest loss %f" % (epoch, loss))
 
     def evaluate(self, X_test: torch.Tensor, y_test: torch.Tensor):
         with torch.no_grad():
@@ -77,4 +81,4 @@ class Model:
             y_pred = (y_pred > 0.5).float()
             accuracy = torch.Tensor((y_pred.round() == y_test)).float().mean().mul(100)
             f1_metric = BinaryF1Score()
-            return accuracy, f1_metric(y_pred, y_test)
+            return accuracy.item(), f1_metric(y_pred, y_test).item() * 100
