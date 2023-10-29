@@ -4,6 +4,7 @@ import torch.optim as optim
 
 from torchmetrics.classification import BinaryF1Score
 from tqdm import tqdm
+from ewc import *
 
 
 class PytorchTopology(nn.Module):
@@ -69,6 +70,12 @@ class Model:
                     y_batch = y_train_tensor[i:i + batch_size]
                     y_batch = y_batch.reshape(-1, 1)
                     loss = self.__loss_fn(y_pred, y_batch).mean()
+                    
+                    # ewc = EWC(self.__topology, [X_batch, y_batch], len(y_batch))
+                    # ewc_loss = ewc.penalty(self.__topology)
+                    # print(ewc_loss)
+                    break
+
                     self.__optimizer.zero_grad()
                     loss.backward()
                     self.__optimizer.step()
