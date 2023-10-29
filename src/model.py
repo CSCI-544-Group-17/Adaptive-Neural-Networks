@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from torchmetrics.classification import BinaryF1Score
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 
 class PytorchTopology(nn.Module):
@@ -29,9 +29,9 @@ class FNNTopology(PytorchTopology):
 
     def __init__(self, name: str, input_size: int):
         super().__init__(name)
-        self.__linear_0 = nn.Linear(input_size, 256)
+        self.__linear_0 = nn.Linear(input_size, 512)
         self.__relu_0 = nn.ReLU()
-        self.__linear_1 = nn.Linear(256, 128)
+        self.__linear_1 = nn.Linear(512, 128)
         self.__relu_1 = nn.ReLU()
         self.__linear_2 = nn.Linear(128, 64)
         self.__relu_2 = nn.ReLU()
@@ -51,29 +51,26 @@ class Model:
     Defines the model topology, training and evaluation functions
     """
 
-    def __init__(self, topology: PytorchTopology, epochs: int, batch_size: int):
+    def __init__(self, topology: PytorchTopology):
         self.__topology = topology
-        self.__loss_fn = nn.BCELoss()
+        self.__loss_fn = nn.BCELoss(reduction='none')
         self.__optimizer = optim.Adam(topology.parameters(), lr=0.0001)
-        self.__epochs = epochs
-        self.__batch_size = batch_size
 
-    def train(self, X_train_tensor: torch.Tensor, y_train_tensor: torch.Tensor):
+    def train(self, X_train_tensor: torch.Tensor, y_train_tensor: torch.Tensor, epochs: int, batch_size: int):
         loss = None
-        with tqdm(total=self.__epochs) as bar:
-            for epoch in range(self.__epochs):
-                for i in range(0, len(X_train_tensor), self.__batch_size):
-                    X_batch = X_train_tensor[i:i + self.__batch_size]
+        with tqdm(total=epochs) as bar:
+            for epoch in range(epochs):
+                for i in range(0, len(X_train_tensor), batch_size):
+                    X_batch = X_train_tensor[i:i + batch_size]
                     y_pred = self.__topology.forward(X_batch)
-                    y_batch = y_train_tensor[i:i + self.__batch_size]
+                    y_batch = y_train_tensor[i:i + batch_size]
                     y_batch = y_batch.reshape(-1, 1)
-                    loss = self.__loss_fn(y_pred, y_batch)
+                    loss = self.__loss_fn(y_pred, y_batch).mean()
                     self.__optimizer.zero_grad()
                     loss.backward()
                     self.__optimizer.step()
                 bar.set_description("Loss: %f" % loss)
                 bar.update()
-                # print("Finished epoch %d, latest loss %f" % (epoch, loss))
 
     def evaluate(self, X_test: torch.Tensor, y_test: torch.Tensor):
         with torch.no_grad():
@@ -82,3 +79,14 @@ class Model:
             accuracy = torch.Tensor((y_pred.round() == y_test)).float().mean().mul(100)
             f1_metric = BinaryF1Score()
             return accuracy.item(), f1_metric(y_pred, y_test).item() * 100
+
+    def get_loss(self, X: torch.Tensor, y: torch.Tensor, batch_size: int) -> torch.Tensor:
+        losses = torch.zeros(y.shape)
+        for i in range(0, len(X), batch_size):
+            with torch.no_grad():
+                X_batch = X[i:i + batch_size]
+                y_batch = y[i:i + batch_size]
+                y_pred = self.__topology.forward(X_batch)
+                loss = self.__loss_fn(y_pred, y_batch)
+                losses[i:i + batch_size] = loss
+        return losses
