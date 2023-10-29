@@ -24,8 +24,7 @@ class RepeatReplayer(Replayer):
     def __init__(self, model: Model, exemplars_directory: str, task_id: int):
         self.__model = model
         self.__exemplars_directory = exemplars_directory
-        self.__cluster_pick = 0.2
-        self.__M = 500
+        self.__M = 1000
         self.__task_id = task_id
 
     def load_exemplars(self):
@@ -40,6 +39,15 @@ class RepeatReplayer(Replayer):
         with open(os.path.join(self.__exemplars_directory, self.__EXEMPLARS_FILE_TEMPLATE % self.__task_id), "w") as f:
             for exemplar in exemplars:
                 f.write(json.dumps(exemplar) + "\n")
+
+    @staticmethod
+    def calculate_coefficient(new_data: torch.Tensor, replay_data: torch.Tensor):
+        replay_feature = torch.mean(replay_data, dim=0)
+        new_feature = torch.mean(new_data, dim=0)
+        a = torch.dot(replay_feature, new_feature)
+        b = torch.norm(replay_feature)
+        c = torch.norm(new_feature)
+        return a / (b * c)
 
     def __pick_current(self, X: torch.Tensor, y: torch.Tensor):
         kmeans = KMeans(n_clusters=5, init='k-means++', n_init='auto')

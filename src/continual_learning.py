@@ -3,7 +3,11 @@ import os
 import sys
 import time
 
-from model import FNNTopology, Model
+import torch
+
+from ewc import EWC
+from model import Model
+from topology import FNNTopology
 from replay import RepeatReplayer
 from utils import load_tensors
 
@@ -34,11 +38,20 @@ class ContinualLearner:
         scores = []
         for task_id in range(0, 5):
             print("Task %d..." % task_id)
-            train_file_paths = self.__get_train_file_paths(task_id, repeat_enabled)
+            train_file_path = os.path.join(self.__base_embeddings_path, "train/train_%d.jsonl" % task_id)
+            X_train, y_train = load_tensors([train_file_path])
+            ewc = None
+            similarity = 0.1
+            if repeat_enabled and task_id > 0:
+                exemplars_file_path = os.path.join(self.__base_exemplars_path, "exemplars_%d.jsonl" % (task_id - 1))
+                X_exemplar, y_exemplar = load_tensors([exemplars_file_path])
+                ewc = EWC(model.get_topology(), model.get_loss_fn(), X_exemplar, y_exemplar, len(y_exemplar))
+                similarity = RepeatReplayer.calculate_coefficient(X_train, X_exemplar)
+                X_train = torch.cat((X_train, X_exemplar))
+                y_train = torch.cat((y_train, y_exemplar))
+            model.train(X_train, y_train, self.__epochs, self.__batch_size, ewc, similarity)
             test_file_paths = self.__get_test_file_paths(task_id)
-            X_train, y_train = load_tensors(train_file_paths)
             X_test, y_test = load_tensors(test_file_paths)
-            model.train(X_train, y_train, self.__epochs, self.__batch_size)
             score = model.evaluate(X_test, y_test)
             scores.append({self.__KEY_TASK_ID: task_id, self.__KEY_ACCURACY: score[0], self.__KEY_F1: score[1]})
             replayer = RepeatReplayer(model, self.__base_exemplars_path, task_id)
@@ -47,11 +60,6 @@ class ContinualLearner:
         with open(os.path.join(self.__results_directory, self.__RESULT_FILE_TEMPLATE % enabled), "w") as f:
             f.write(json.dumps(scores, indent=1))
         print("Time taken: %.2fs\n" % (time.time() - start))
-
-    def __get_train_file_paths(self, task_id: int, repeat_enabled: bool):
-        train_file_path = os.path.join(self.__base_embeddings_path, "train/train_%d.jsonl" % task_id)
-        exemplars_file_path = os.path.join(self.__base_exemplars_path, "exemplars_%d.jsonl" % (task_id - 1))
-        return [train_file_path, exemplars_file_path] if (task_id > 0 and repeat_enabled) else [train_file_path]
 
     def __get_test_file_paths(self, task_id: int):
         test_file_paths = []
