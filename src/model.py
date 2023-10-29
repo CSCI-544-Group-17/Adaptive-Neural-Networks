@@ -31,18 +31,21 @@ class FNNTopology(PytorchTopology):
         super().__init__(name)
         self.__linear_0 = nn.Linear(input_size, 512)
         self.__relu_0 = nn.ReLU()
-        self.__linear_1 = nn.Linear(512, 128)
+        self.__linear_1 = nn.Linear(512, 256)
         self.__relu_1 = nn.ReLU()
-        self.__linear_2 = nn.Linear(128, 64)
+        self.__linear_2 = nn.Linear(256, 128)
         self.__relu_2 = nn.ReLU()
-        self.__linear_3 = nn.Linear(64, 1)
+        self.__linear_3 = nn.Linear(128, 64)
+        self.__relu_3 = nn.ReLU()
+        self.__linear_4 = nn.Linear(64, 1)
         self.__sigmoid_out = nn.Sigmoid()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.__relu_0(self.__linear_0(x))
         x = self.__relu_1(self.__linear_1(x))
         x = self.__relu_2(self.__linear_2(x))
-        x = self.__sigmoid_out(self.__linear_3(x))
+        x = self.__relu_3(self.__linear_3(x))
+        x = self.__sigmoid_out(self.__linear_4(x))
         return x
 
 

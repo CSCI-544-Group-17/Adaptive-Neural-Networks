@@ -1,19 +1,13 @@
 import json
 import os
-import sys
 from typing import Dict, List
 
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import numpy as np
-
 from sklearn.cluster import KMeans
 
+import utils
 from model import Model
 from utils import load_tensors
-
-EMBEDDINGS_READ_PATH = "../t5p_small_embeddings/"
 
 
 class Replayer:
@@ -25,21 +19,25 @@ class Replayer:
 
 
 class RepeatReplayer(Replayer):
+    __EXEMPLARS_FILE_TEMPLATE = "exemplars_%d.jsonl"
+
     def __init__(self, model: Model, exemplars_directory: str, task_id: int):
         self.__model = model
         self.__exemplars_directory = exemplars_directory
         self.__cluster_pick = 0.2
-        self.__M = 1000
+        self.__M = 500
         self.__task_id = task_id
 
     def load_exemplars(self):
-        return load_tensors(self.__exemplars_directory)
+        return load_tensors([self.__exemplars_directory])
 
     def update_exemplars(self, X: torch.Tensor, y: torch.Tensor):
         exemplars = []
         current_exemplars = self.__pick_current(X, y)
+        old_exemplars = self.__pick_old()
         exemplars.extend(current_exemplars)
-        with open(os.path.join(self.__exemplars_directory, "exemplars_%d.jsonl" % self.__task_id), "w") as f:
+        exemplars.extend(old_exemplars)
+        with open(os.path.join(self.__exemplars_directory, self.__EXEMPLARS_FILE_TEMPLATE % self.__task_id), "w") as f:
             for exemplar in exemplars:
                 f.write(json.dumps(exemplar) + "\n")
 
@@ -60,7 +58,29 @@ class RepeatReplayer(Replayer):
             current_exemplars.extend(classes[key][:m])
         results = []
         for exemplar in current_exemplars:
-            results.append({"embeddings": [X[exemplar.index].tolist()], "label": int(y[exemplar.index].item())})
+            results.append({
+                utils.KEY_EMBEDDINGS: [X[exemplar.index].tolist()],
+                utils.KEY_LABEL: int(y[exemplar.index].item())
+            })
+        return results
+
+    def __pick_old(self):
+        results = []
+        for task_id in range(0, self.__task_id):
+            exemplars_file_path = os.path.join(self.__exemplars_directory, self.__EXEMPLARS_FILE_TEMPLATE % task_id)
+            X, y = load_tensors([exemplars_file_path])
+            losses = self.__model.get_loss(X, y, 100)
+            exemplars = [Exemplar(i, 0, losses[i].item()) for i in range(len(losses))]
+            exemplars = sorted(exemplars, key=lambda e: e.loss)
+            M = self.__M
+            t = self.__task_id + 2
+            m = M * (t * t - t - 1) // (t * t - 1)
+            exemplars = exemplars[:m]
+            for exemplar in exemplars:
+                results.append({
+                    utils.KEY_EMBEDDINGS: [X[exemplar.index].tolist()],
+                    utils.KEY_LABEL: int(y[exemplar.index].item())
+                })
         return results
 
 
