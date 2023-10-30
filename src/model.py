@@ -1,8 +1,8 @@
-import torch.nn as nn
 import torch.optim as optim
-
-from torchmetrics.classification import BinaryF1Score
+from torch.nn.modules.loss import _Loss
+from torchmetrics.classification import BinaryF1Score, MulticlassF1Score
 from tqdm import tqdm
+
 from ewc import *
 from topology import PytorchTopology
 
@@ -12,9 +12,9 @@ class Model:
     Defines the model topology, training and evaluation functions
     """
 
-    def __init__(self, topology: PytorchTopology):
+    def __init__(self, topology: PytorchTopology, loss_fn: _Loss):
         self.__topology = topology
-        self.__loss_fn = nn.BCELoss(reduction='none')
+        self.__loss_fn = loss_fn
         self.__optimizer = optim.Adam(topology.parameters(), lr=0.0001)
 
     def get_topology(self):
@@ -31,7 +31,6 @@ class Model:
                     X_batch = X_train_tensor[i:i + batch_size]
                     y_pred = self.__topology.forward(X_batch)
                     y_batch = y_train_tensor[i:i + batch_size]
-                    y_batch = y_batch.reshape(-1, 1)
                     loss = self.__loss_fn(y_pred, y_batch).mean()
                     if ewc is not None:
                         ewc_loss = ewc.penalty(self.__topology)
@@ -47,16 +46,22 @@ class Model:
             y_pred = self.__topology.forward(X_test)
             y_pred = (y_pred > 0.5).float()
             accuracy = torch.Tensor((y_pred.round() == y_test)).float().mean().mul(100)
-            f1_metric = BinaryF1Score()
-            return accuracy.item(), f1_metric(y_pred, y_test).item() * 100
+            if y_test.shape[1] == 1:
+                f1_metric = BinaryF1Score()
+                f1_score = f1_metric(y_pred, y_test).item() * 100
+            else:
+                f1_metric = MulticlassF1Score(num_classes=y_test.shape[1])
+                f1_score = f1_metric(y_pred, y_test).mean().item() * 100
+            return accuracy.item(), f1_score
 
     def get_loss(self, X: torch.Tensor, y: torch.Tensor, batch_size: int) -> torch.Tensor:
-        losses = torch.zeros(y.shape)
+        losses = torch.zeros(size=(y.shape[0], 1))
         for i in range(0, len(X), batch_size):
             with torch.no_grad():
                 X_batch = X[i:i + batch_size]
                 y_batch = y[i:i + batch_size]
                 y_pred = self.__topology.forward(X_batch)
                 loss = self.__loss_fn(y_pred, y_batch)
+                loss = loss.reshape(-1, 1)
                 losses[i:i + batch_size] = loss
         return losses

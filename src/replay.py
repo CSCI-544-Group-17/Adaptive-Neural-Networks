@@ -68,7 +68,7 @@ class RepeatReplayer(Replayer):
         for exemplar in current_exemplars:
             results.append({
                 utils.KEY_EMBEDDINGS: [X[exemplar.index].tolist()],
-                utils.KEY_LABEL: int(y[exemplar.index].item())
+                utils.KEY_LABEL: self.__get_label(y[exemplar.index])
             })
         return results
 
@@ -87,9 +87,15 @@ class RepeatReplayer(Replayer):
             for exemplar in exemplars:
                 results.append({
                     utils.KEY_EMBEDDINGS: [X[exemplar.index].tolist()],
-                    utils.KEY_LABEL: int(y[exemplar.index].item())
+                    utils.KEY_LABEL: self.__get_label(y[exemplar.index])
                 })
         return results
+
+    @staticmethod
+    def __get_label(y_i: torch.Tensor):
+        if y_i.shape[0] == 1:
+            return int(y_i.item())
+        return y_i.tolist()
 
 
 class Exemplar:

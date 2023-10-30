@@ -16,13 +16,7 @@ class PytorchTopology(nn.Module):
         raise NotImplementedError("Please implement the forward function")
 
 
-class FNNTopology(PytorchTopology):
-    """
-    Defines the topology of a feedforward multi layer perceptron network
-    1. 2 layers with 50 and 5 nodes each
-    2. The input size can be provided, depending on the size of the word vectors
-    """
-
+class BinaryFNNTopology(PytorchTopology):
     def __init__(self, name: str, input_size: int):
         super().__init__(name)
         self.__linear_0 = nn.Linear(input_size, 512)
@@ -42,4 +36,44 @@ class FNNTopology(PytorchTopology):
         x = self.__relu_2(self.__linear_2(x))
         x = self.__relu_3(self.__linear_3(x))
         x = self.__sigmoid_out(self.__linear_4(x))
+        return x
+
+
+class MulticlassFNNTopology(PytorchTopology):
+    def __init__(self, name: str, input_size: int, num_classes: int):
+        super().__init__(name)
+        self.__linear_0 = nn.Linear(input_size, 1024)
+        self.__relu_0 = nn.ReLU()
+        self.__linear_1 = nn.Linear(1024, 512)
+        self.__relu_1 = nn.ReLU()
+        self.__linear_2 = nn.Linear(512, 256)
+        self.__relu_2 = nn.ReLU()
+        self.__linear_3 = nn.Linear(256, 64)
+        self.__relu_3 = nn.ReLU()
+        self.__linear_4 = nn.Linear(64, num_classes)
+        self.__softmax_out = nn.Softmax(dim=1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.__relu_0(self.__linear_0(x))
+        x = self.__relu_1(self.__linear_1(x))
+        x = self.__relu_2(self.__linear_2(x))
+        x = self.__relu_3(self.__linear_3(x))
+        x = self.__softmax_out(self.__linear_4(x))
+        return x
+
+
+class MulticlassFNNTopologySmall(PytorchTopology):
+    def __init__(self, name: str, input_size: int, num_classes: int):
+        super().__init__(name)
+        self.__linear_0 = nn.Linear(input_size, 128)
+        self.__relu_0 = nn.ReLU()
+        self.__linear_1 = nn.Linear(128, 64)
+        self.__relu_1 = nn.ReLU()
+        self.__linear_2 = nn.Linear(64, num_classes)
+        self.__softmax_out = nn.Softmax(dim=1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.__relu_0(self.__linear_0(x))
+        x = self.__relu_1(self.__linear_1(x))
+        x = self.__softmax_out(self.__linear_2(x))
         return x

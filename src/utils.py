@@ -17,7 +17,7 @@ def load_tensors(files: List):
     X = np.array(X)
     y = np.array(y)
     X = torch.tensor(X, dtype=torch.float32).clone().detach().to(DEVICE).reshape(-1, 256)
-    y = torch.tensor(y, dtype=torch.float32).clone().detach().to(DEVICE).reshape(-1, 1)
+    y = torch.tensor(y, dtype=torch.float32).clone().detach().to(DEVICE)
     return X, y
 
 
@@ -29,5 +29,8 @@ def __load_and_append(file_path: str, X: List, y: List):
                 break
             data = json.loads(line)
             X.append(data[KEY_EMBEDDINGS])
-            y.append(data[KEY_LABEL])
+            if not isinstance(data[KEY_LABEL], list):
+                y.append([data[KEY_LABEL]])
+            else:
+                y.append(data[KEY_LABEL])
             line = f.readline()
