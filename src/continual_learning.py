@@ -7,8 +7,8 @@ import torch
 
 from ewc import EWC
 from model import Model
-from topology import FNNTopology
 from replay import RepeatReplayer
+from topology import FNNTopology
 from utils import load_tensors
 
 
