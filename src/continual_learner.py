@@ -37,10 +37,6 @@ class ContinualLearner:
         start = time.time()
         if self.__repeat_enabled:
             print("REPEAT enabled!")
-        train_file_path = os.path.join(self.__base_embeddings_path, "train/train.jsonl")
-        X_train, y_train = load_tensors([train_file_path])
-        print("Initial model training...")
-        self.__model.train(X_train, y_train, self.__epochs, self.__batch_size)
         scores = []
         for task_id in range(0, self.__tasks):
             print("Task %d..." % task_id)
@@ -60,7 +56,8 @@ class ContinualLearner:
             test_file_paths = self.__get_test_file_paths(task_id)
             X_test, y_test = load_tensors(test_file_paths)
             score = self.__model.evaluate(X_test, y_test)
-            scores.append({self.__KEY_TASK_ID: task_id, self.__KEY_ACCURACY: score[0], self.__KEY_F1: score[1]})
+            scores.append({self.__KEY_TASK_ID: task_id, self.__KEY_ACCURACY: self.__get_metric(score[0]),
+                           self.__KEY_F1: self.__get_metric(score[1])})
             if self.__repeat_enabled:
                 replayer = RepeatReplayer(self.__model, self.__base_exemplars_path, task_id)
                 replayer.update_exemplars(X_train, y_train)
@@ -74,3 +71,10 @@ class ContinualLearner:
         for i in range(task_id + 1):
             test_file_paths.append(os.path.join(self.__base_embeddings_path, "test/test_%d.jsonl" % i))
         return test_file_paths
+
+    @staticmethod
+    def __get_metric(metric):
+        if isinstance(metric, torch.Tensor):
+            print(metric)
+            return metric.tolist()
+        return metric

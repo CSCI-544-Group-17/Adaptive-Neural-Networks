@@ -4,12 +4,12 @@ from torch.nn import CrossEntropyLoss
 
 from continual_learner import ContinualLearner
 from model import Model
-from topology import MulticlassFNNTopology, MulticlassFNNTopologySmall
+from topology import MulticlassFNNTopologySmall
 
 
 class MulticlassContinualLearner(ContinualLearner):
     def __init__(self, model: Model, base_embeddings_path: str, base_exemplars_path: str, results_directory: str, epochs: int, batch_size: 100, repeat_enabled: bool):
-        super().__init__(model, base_embeddings_path, base_exemplars_path, results_directory, epochs, batch_size, repeat_enabled, 4)
+        super().__init__(model, base_embeddings_path, base_exemplars_path, results_directory, epochs, batch_size, repeat_enabled, 5)
 
 
 def repeat_enabled():

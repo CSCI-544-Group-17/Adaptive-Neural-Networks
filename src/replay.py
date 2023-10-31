@@ -24,7 +24,7 @@ class RepeatReplayer(Replayer):
     def __init__(self, model: Model, exemplars_directory: str, task_id: int):
         self.__model = model
         self.__exemplars_directory = exemplars_directory
-        self.__M = 1000
+        self.__M = 500
         self.__task_id = task_id
 
     def load_exemplars(self):
