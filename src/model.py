@@ -1,7 +1,7 @@
+import torch
 import torch.optim as optim
-from sklearn.metrics import f1_score
 from torch.nn.modules.loss import _Loss
-from torchmetrics.classification import BinaryF1Score, MulticlassF1Score, MulticlassAccuracy
+from torchmetrics.classification import MulticlassF1Score, MulticlassAccuracy
 from tqdm import tqdm
 
 from ewc import *
@@ -26,7 +26,7 @@ class Model:
 
     def train(self, X_train_tensor: torch.Tensor, y_train_tensor: torch.Tensor, epochs: int, batch_size: int,
               ewc: EWC = None, similarity: float = None):
-        loss = None
+        self.__topology.train()
         with tqdm(total=epochs) as bar:
             for epoch in range(epochs):
                 for i in range(0, len(X_train_tensor), batch_size):
@@ -44,39 +44,19 @@ class Model:
                 bar.update()
 
     def evaluate(self, X_test: torch.Tensor, y_test: torch.Tensor):
+        self.__topology.eval()
         with torch.no_grad():
             y_pred = self.__topology.forward(X_test)
-            is_binary = y_test.shape[1] == 1
-            print(is_binary)
-            if is_binary:
-                y_pred = (y_pred > 0.5).float()
-                accuracy = torch.Tensor((y_pred.round() == y_test)).float().mean().mul(100)
-                f1_metric = BinaryF1Score()
-                f1_score = f1_metric(y_pred, y_test).item() * 100
-                return accuracy.item(), f1_score
-            else:
-                num_classes = y_test.shape[1]
-                y_pred = torch.argmax(y_pred, dim=1)
-                y_test = torch.argmax(y_test, dim=1)
-                acc_metric = MulticlassAccuracy(num_classes=num_classes)
-                accuracy = acc_metric(y_pred, y_test).mul(100)
-                f1_metric = MulticlassF1Score(num_classes=num_classes, average=None)
-                f1_score = f1_metric(y_pred, y_test).mul(100)
-                return accuracy, f1_score
-
-
-    @staticmethod
-    def get_f1_score(y_pred: torch.Tensor, y_test):
-        num_classes = y_pred.shape[1]
-        f1_scores = []
-        for i in range(num_classes):
-            y_pred_col = y_pred[:, i]
-            y_test_col = y_test[:, i]
-            print("Class %d, Preds: %s, Tests: %s" % (i, torch.sum(y_pred_col), torch.sum(y_test_col)))
-            f1_scores.append(f1_score(y_test_col, y_pred_col))
-        return torch.Tensor(f1_scores)
+            num_classes = y_pred.shape[1]
+            y_pred = torch.argmax(y_pred, dim=1)
+            acc_metric = MulticlassAccuracy(num_classes=num_classes)
+            accuracy = acc_metric(y_pred, y_test).mul(100)
+            f1_metric = MulticlassF1Score(num_classes=num_classes, average=None)
+            f1_score = f1_metric(y_pred, y_test).mul(100)
+            return accuracy, f1_score
 
     def get_loss(self, X: torch.Tensor, y: torch.Tensor, batch_size: int) -> torch.Tensor:
+        self.__topology.eval()
         losses = torch.zeros(size=(y.shape[0], 1))
         for i in range(0, len(X), batch_size):
             with torch.no_grad():

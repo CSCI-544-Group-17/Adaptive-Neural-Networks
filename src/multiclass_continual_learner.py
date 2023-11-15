@@ -13,13 +13,13 @@ class MulticlassContinualLearner(ContinualLearner):
 
 
 def repeat_enabled():
-    model = Model(MulticlassFNNTopologySmall("Multiclass FNN topology", 256, 5 + 1), CrossEntropyLoss(reduction='none'))
+    model = Model(MulticlassFNNTopologySmall("Multiclass FNN topology", 256, 5 + 1), CrossEntropyLoss())
     learner = MulticlassContinualLearner(model, sys.argv[1], sys.argv[2], sys.argv[3], 150, 100, True)
     learner.learn()
 
 
 def repeat_disabled():
-    model = Model(MulticlassFNNTopologySmall("Multiclass FNN topology", 256, 5 + 1), CrossEntropyLoss(reduction='none'))
+    model = Model(MulticlassFNNTopologySmall("Multiclass FNN topology", 256, 5 + 1), CrossEntropyLoss())
     learner = MulticlassContinualLearner(model, sys.argv[1], sys.argv[2], sys.argv[3], 150, 100, False)
     learner.learn()
 

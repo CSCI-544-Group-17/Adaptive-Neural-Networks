@@ -50,7 +50,7 @@ class RepeatReplayer(Replayer):
         return a / (b * c)
 
     def __pick_current(self, X: torch.Tensor, y: torch.Tensor):
-        kmeans = KMeans(n_clusters=5, init='k-means++', n_init='auto')
+        kmeans = KMeans(n_clusters=10, init='k-means++', n_init='auto')
         labels = kmeans.fit_predict(X)
         losses = self.__model.get_loss(X, y, 100)
         exemplars = [Exemplar(i, labels[i], losses[i].item()) for i in range(len(labels))]
@@ -60,7 +60,7 @@ class RepeatReplayer(Replayer):
                 classes[exemplar.label] = []
             classes[exemplar.label].append(exemplar)
         current_exemplars = []
-        m = self.__M // (self.__task_id + 1)
+        m = 2 * self.__M // (self.__task_id + 1)
         for key in classes.keys():
             classes[key] = sorted(classes[key], key=lambda e: e.loss)
             current_exemplars.extend(classes[key][:m])
@@ -93,9 +93,7 @@ class RepeatReplayer(Replayer):
 
     @staticmethod
     def __get_label(y_i: torch.Tensor):
-        if y_i.shape[0] == 1:
-            return int(y_i.item())
-        return y_i.tolist()
+        return int(y_i.item())
 
 
 class Exemplar:
