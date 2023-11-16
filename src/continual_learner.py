@@ -33,14 +33,27 @@ class ContinualLearner:
         self.__repeat_enabled = repeat_enabled
         self.__tasks = tasks
 
+    def is_new_task(self, task_dict, task_identifier):
+        # Extract the task identifier from the current file name
+        #task_identifier = current_file.split('/')[-1].split('.')[0]
+        # Check if this task identifier is new
+        if task_identifier not in task_dict:
+            return True
+        return False
+
     def learn(self):
         start = time.time()
         if self.__repeat_enabled:
             print("REPEAT enabled!")
         scores = []
+        #to keep track classes - AG
+        task_dict = {}  # Dictionary to keep track of tasks
         for task_id in range(0, self.__tasks):
             print("Task %d..." % task_id)
             train_file_path = os.path.join(self.__base_embeddings_path, "train/train_%d.jsonl" % task_id)
+            # Extract the task identifier from the current file name
+            task_identifier = train_file_path.split('/')[-1].split('.')[0]
+            #task_dict["train_%d" % task_id] = task_id
             X_train, y_train = load_tensors([train_file_path])
             ewc = None
             similarity = 0.1
@@ -52,7 +65,13 @@ class ContinualLearner:
                 similarity = RepeatReplayer.calculate_coefficient(X_train, X_exemplar)
                 X_train = torch.cat((X_train, X_exemplar))
                 y_train = torch.cat((y_train, y_exemplar))
-            self.__model.train(X_train, y_train, self.__epochs, self.__batch_size, ewc, similarity)
+            #TODO: add network fn called
+            if self.is_new_task(task_dict, task_identifier):
+                self.__model.get_topology().model.add_network()
+                print("Added a new column to PNN %d" % task_id)
+            task_dict[task_identifier] = task_id
+           #self.__model.train(X_train, y_train, self.__epochs, self.__batch_size, ewc, similarity) -- Old one
+            self.__model.train(X_train, y_train, self.__epochs, self.__batch_size, ewc, similarity, task_id)
             test_file_paths = self.__get_test_file_paths(task_id)
             X_test, y_test = load_tensors(test_file_paths)
             score = self.__model.evaluate(X_test, y_test)
@@ -61,6 +80,7 @@ class ContinualLearner:
             if self.__repeat_enabled:
                 replayer = RepeatReplayer(self.__model, self.__base_exemplars_path, task_id)
                 replayer.update_exemplars(X_train, y_train)
+        #print(task_dict)
         enabled = "enabled" if self.__repeat_enabled else "disabled"
         with open(os.path.join(self.__results_directory, self.__RESULT_FILE_TEMPLATE % enabled), "w") as f:
             f.write(json.dumps(scores, indent=1))

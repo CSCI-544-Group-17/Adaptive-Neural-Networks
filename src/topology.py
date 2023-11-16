@@ -1,6 +1,6 @@
 import torch
 from torch import nn as nn
-
+from pnn import PNN, InitialColumnProgNN, ExtensibleColumnProgNN, train_column, test_column
 
 class PytorchTopology(nn.Module):
     """
@@ -74,3 +74,18 @@ class MulticlassFNNTopologySmall(PytorchTopology):
         x = self.__relu_1(self.__linear_1(x))
         x = self.__linear_2(x)
         return x
+
+'''PNN'''
+
+class PNNTopology(PytorchTopology):
+    def __init__(self, name: str):
+        super().__init__(name)
+        # Initialize the PNN model
+        self.model = PNN()  # Assuming PNN() initializes with fixed input_size and num_classes
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Forward pass through your PNN
+        return self.model(x)
+    
+    def get_all_parameters(self):
+        # Delegate to the PNN model's method
+        return self.model.get_all_parameters()
