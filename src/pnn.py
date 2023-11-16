@@ -23,12 +23,13 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from torch.utils.data import DataLoader, TensorDataset
 import topology
 
+
 class InitialColumnProgNN(nn.Module):
     def __init__(self, topology, activations, lr):
         super(InitialColumnProgNN, self).__init__()
         self.layers = nn.ModuleList()
         for i in range(len(topology) - 1):
-            self.layers.append(nn.Linear(topology[i], topology[i+1]))
+            self.layers.append(nn.Linear(topology[i], topology[i + 1]))
         self.activations = activations
 
         # optimizer and criterion
@@ -40,8 +41,9 @@ class InitialColumnProgNN(nn.Module):
             x = layer(x)
             # removinf softmax from last layer because of crossentropyloss function - vishal
             if i != len(self.activations):
-              x = self.activations[i](x)
+                x = self.activations[i](x)
         return x
+
 
 class ExtensibleColumnProgNN(nn.Module):
     def __init__(self, topology, activations, prev_columns, lr):
@@ -49,9 +51,10 @@ class ExtensibleColumnProgNN(nn.Module):
         self.layers = nn.ModuleList()
         self.lateral_connections = nn.ModuleList()
         for i in range(len(topology) - 1):
-            self.layers.append(nn.Linear(topology[i], topology[i+1]))
+            self.layers.append(nn.Linear(topology[i], topology[i + 1]))
             if i > 0:
-                lateral = [nn.Linear(prev_column.layers[i-1].out_features, topology[i+1], bias=False) for prev_column in prev_columns]
+                lateral = [nn.Linear(prev_column.layers[i - 1].out_features, topology[i + 1], bias=False) for
+                           prev_column in prev_columns]
                 self.lateral_connections.append(nn.ModuleList(lateral))
         self.activations = activations
         self.prev_columns = prev_columns
@@ -69,89 +72,21 @@ class ExtensibleColumnProgNN(nn.Module):
                 x_copy = col_layer(x_copy)
                 # removinf softmax from last layer because of crossentropyloss function - vishal
                 if i != len(self.prev_columns[j].activations):
-                  x_copy = self.prev_columns[j].activations[i](x_copy)
+                    x_copy = self.prev_columns[j].activations[i](x_copy)
                 prev_hs[j][i] = x_copy.clone()
-
 
         for i, layer in enumerate(self.layers):
             x = layer(x)
             if i > 0:
-                for j, lateral in enumerate(self.lateral_connections[i-1]):
+                for j, lateral in enumerate(self.lateral_connections[i - 1]):
                     x += lateral(prev_hs[j][i - 1])
             # removinf softmax from last layer because of crossentropyloss function - vishal
             if i != len(self.activations):
-              x = self.activations[i](x)
+                x = self.activations[i](x)
         return x
 
-# Added new function to just return loss for an epoch
-def train_subnetwork(self, subnetwork_index, data, target, optimizer):
-    for i in range(self.num_classes):
-            if i == subnetwork_index:
-                # Unfreeze the parameters of the modules
-                for param in self.subnetworks[i].parameters():
-                    param.requires_grad = True
-            else:
-                # Freeze the parameters of the modules
-                for param in self.subnetworks[i].parameters():
-                    param.requires_grad = False
-        # Train the relevant PNN
-    optimizer.zero_grad()
-    output = self.subnetworks[subnetwork_index](data)
-    loss = self.subnetworks[subnetwork_index].criterion(output, target)
-    return loss
 
-def unfreeze_params(self):
-    #Unfreeze all parameters
-    for i in range(self.num_classes):
-        for param in self.subnetworks[i].parameters():
-                param.requires_grad = True
-
-
-#todo: add training batch size later
-def train_column(column, data, target, epochs=50, batch_size=32):
-    # Create a dataset and data loader for batching
-    dataset = TensorDataset(data, target)
-    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
-    # saved h_values for training lateral connections
-    for epoch in range(epochs):
-        for batch_data, batch_target in data_loader:
-            column.optimizer.zero_grad()
-
-            # forward pass
-            output = column(batch_data)
-
-            loss = column.criterion(output, batch_target)
-            loss.backward()
-            column.optimizer.step()
-        if epoch%10 == 9:
-          print(f'Epoch {epoch + 1}/{epochs}, Loss: {loss.item()}')
-
-def test_column(column, embeddings, labels):
-    column.eval()  # Set the model to evaluation mode todo: do we need to unset eval mode after testing??
-    with torch.no_grad():
-        test_outputs = column(embeddings)
-        logits, predicted = torch.max(test_outputs, 1)
-        return (logits, predicted)
-
-        # # Calculate accuracy
-        # accuracy = accuracy_score(labels, predicted)
-
-        # # Calculate F1 score
-        # f1 = f1_score(labels, predicted)
-
-        # # Calculate precision
-        # precision = precision_score(labels, predicted)
-
-        # # Calculate recall
-        # recall = recall_score(labels, predicted)
-
-        # print("Accuracy: {:.2f}".format(accuracy))
-        # print("F1 Score: {:.2f}".format(f1))
-        # print("Precision: {:.2f}".format(precision))
-        # print("Recall: {:.2f}".format(recall))
-
-class PNN():
+class PNN:
     def __init__(self):
         self.num_classes = 1
 
@@ -169,7 +104,6 @@ class PNN():
     def add_network(self):
         self.num_classes += 1
         self.subnetworks.append(ExtensibleColumnProgNN(self.topology, self.activations, self.subnetworks, self.lr))
-    
 
     def get_all_parameters(self):
         # Aggregate parameters from all subnetworks
@@ -179,12 +113,12 @@ class PNN():
     def train(self):
         for column in self.subnetworks:
             column.train()
-    
+
     def eval(self):
         for column in self.subnetworks:
             column.train()
 
-    #Changed the name of train to train_PNN for it to work with REPEAT
+    # Changed the name of train to train_PNN for it to work with REPEAT
     def train_PNN(self, subnetwork, embeddings, labels):
         for i in range(self.num_classes):
             if i == subnetwork:
@@ -198,10 +132,10 @@ class PNN():
         # Train the relevant PNN
         train_column(self.subnetworks[subnetwork], embeddings, labels, epochs=50)
 
-        #Unfreeze all parameters
+        # Unfreeze all parameters
         for i in range(self.num_classes):
             for param in self.subnetworks[i].parameters():
-                    param.requires_grad = True
+                param.requires_grad = True
 
     def test_PNN(self, embeddings, labels, i):
         confidence_scores_class_arr = []
@@ -214,7 +148,7 @@ class PNN():
 
         one_hot_predictions = []
         for j in range(len(labels)):
-            tmp = [0]*self.num_classes
+            tmp = [0] * self.num_classes
 
             max_confidence = float('-inf')
             max_idx = -1
@@ -264,6 +198,85 @@ class PNN():
         print(f'F1 Score: {f1}')
         print(f'Precision: {precision}')
         print(f'Recall: {recall}')
+
+
+# Added new function to just return loss for an epoch
+def calculate_loss(pnn: PNN, subnetwork_index, output, target):
+    loss = pnn.subnetworks[subnetwork_index].criterion(output, target)
+    return loss
+
+
+def freeze_params(pnn: PNN, subnetwork_index: int):
+    for i in range(pnn.num_classes):
+        if i == subnetwork_index:
+            # Unfreeze the parameters of the modules
+            for param in pnn.subnetworks[i].parameters():
+                param.requires_grad = True
+        else:
+            # Freeze the parameters of the modules
+            for param in pnn.subnetworks[i].parameters():
+                param.requires_grad = False
+
+def forward2(pnn: PNN, subnetwork_index: int, X: torch.Tensor, optimizer):
+    optimizer.zero_grad()
+    return pnn.subnetworks[subnetwork_index](X)
+
+
+def forward(column, X: torch.Tensor):
+    return column(X)
+
+
+def unfreeze_params(pnn: PNN):
+    # Unfreeze all parameters
+    for i in range(pnn.num_classes):
+        for param in pnn.subnetworks[i].parameters():
+            param.requires_grad = True
+
+
+# todo: add training batch size later
+def train_column(column, data, target, epochs=50, batch_size=32):
+    # Create a dataset and data loader for batching
+    dataset = TensorDataset(data, target)
+    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    # saved h_values for training lateral connections
+    for epoch in range(epochs):
+        for batch_data, batch_target in data_loader:
+            column.optimizer.zero_grad()
+
+            # forward pass
+            output = column(batch_data)
+
+            loss = column.criterion(output, batch_target)
+            loss.backward()
+            column.optimizer.step()
+        if epoch % 10 == 9:
+            print(f'Epoch {epoch + 1}/{epochs}, Loss: {loss.item()}')
+
+
+def test_column(column, embeddings, labels):
+    column.eval()  # Set the model to evaluation mode todo: do we need to unset eval mode after testing??
+    with torch.no_grad():
+        test_outputs = column(embeddings)
+        logits, predicted = torch.max(test_outputs, 1)
+        return (logits, predicted)
+
+        # # Calculate accuracy
+        # accuracy = accuracy_score(labels, predicted)
+
+        # # Calculate F1 score
+        # f1 = f1_score(labels, predicted)
+
+        # # Calculate precision
+        # precision = precision_score(labels, predicted)
+
+        # # Calculate recall
+        # recall = recall_score(labels, predicted)
+
+        # print("Accuracy: {:.2f}".format(accuracy))
+        # print("F1 Score: {:.2f}".format(f1))
+        # print("Precision: {:.2f}".format(precision))
+        # print("Recall: {:.2f}".format(recall))
 
 
 """ model = PNN()
@@ -475,7 +488,7 @@ labels0 = torch.tensor(labels)
 
 model.test(embeddings0, labels0, 3)
 
-"""# Task 5
+"""  # Task 5
 
 """
 

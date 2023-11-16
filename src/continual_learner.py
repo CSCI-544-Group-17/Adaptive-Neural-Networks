@@ -60,14 +60,14 @@ class ContinualLearner:
             if self.__repeat_enabled and task_id > 0:
                 exemplars_file_path = os.path.join(self.__base_exemplars_path, "exemplars_%d.jsonl" % (task_id - 1))
                 X_exemplar, y_exemplar = load_tensors([exemplars_file_path])
-                ewc = EWC(self.__model.get_topology(), self.__model.get_loss_fn(), X_exemplar, y_exemplar,
+                ewc = EWC(self.__model.get_pnn(), self.__model.get_loss_fn(), X_exemplar, y_exemplar,
                           len(y_exemplar))
                 similarity = RepeatReplayer.calculate_coefficient(X_train, X_exemplar)
                 X_train = torch.cat((X_train, X_exemplar))
                 y_train = torch.cat((y_train, y_exemplar))
             #TODO: add network fn called
             if self.is_new_task(task_dict, task_identifier):
-                self.__model.get_topology().model.add_network()
+                self.__model.get_pnn().pnn.add_network()
                 print("Added a new column to PNN %d" % task_id)
             task_dict[task_identifier] = task_id
            #self.__model.train(X_train, y_train, self.__epochs, self.__batch_size, ewc, similarity) -- Old one

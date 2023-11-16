@@ -52,7 +52,7 @@ class RepeatReplayer(Replayer):
     def __pick_current(self, X: torch.Tensor, y: torch.Tensor):
         kmeans = KMeans(n_clusters=10, init='k-means++', n_init='auto')
         labels = kmeans.fit_predict(X)
-        losses = self.__model.get_loss(X, y, 100)
+        losses = self.__model.get_loss(X, y, 100, self.__task_id)
         exemplars = [Exemplar(i, labels[i], losses[i].item()) for i in range(len(labels))]
         classes: Dict[int, List[Exemplar]] = {}
         for exemplar in exemplars:
@@ -77,7 +77,7 @@ class RepeatReplayer(Replayer):
         for task_id in range(0, self.__task_id):
             exemplars_file_path = os.path.join(self.__exemplars_directory, self.__EXEMPLARS_FILE_TEMPLATE % task_id)
             X, y = load_tensors([exemplars_file_path])
-            losses = self.__model.get_loss(X, y, 100)
+            losses = self.__model.get_loss(X, y, 100, self.__task_id)
             exemplars = [Exemplar(i, 0, losses[i].item()) for i in range(len(losses))]
             exemplars = sorted(exemplars, key=lambda e: e.loss)
             M = self.__M
