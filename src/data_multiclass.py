@@ -35,8 +35,8 @@ def prepare_class(name: str, _type: str, base_read_path: str, base_write_path: s
 def main():
     classes = ["dos", "+info", "bypass", "priv", "other"]
     for i, c in enumerate(classes):
-        prepare_class(c, "train", "../multiclass_embeddings/", "../t5p_small_multiclass_multilabel_embeddings/", i)
-        prepare_class(c, "test", "../multiclass_embeddings/", "../t5p_small_multiclass_multilabel_embeddings/", i)
+        prepare_class(c, "train", "../embeddings/", "../t5p_small_multiclass_multilabel_embeddings/", i)
+        prepare_class(c, "test", "../embeddings/", "../t5p_small_multiclass_multilabel_embeddings/", i)
 
 
 if __name__ == '__main__':
