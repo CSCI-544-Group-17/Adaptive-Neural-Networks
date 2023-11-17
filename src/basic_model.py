@@ -1,4 +1,3 @@
-import torch
 import torch.optim as optim
 from torch.nn.modules.loss import _Loss
 from torchmetrics.classification import MulticlassF1Score, MulticlassAccuracy
@@ -8,7 +7,7 @@ from ewc import *
 from topology import PytorchTopology
 
 
-class Model:
+class BasicModel:
     """
     Defines the model topology, training and evaluation functions
     """

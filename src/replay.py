@@ -6,7 +6,7 @@ import torch
 from sklearn.cluster import KMeans
 
 import utils
-from model import Model
+from basic_model import BasicModel
 from utils import load_tensors
 
 
@@ -21,7 +21,7 @@ class Replayer:
 class RepeatReplayer(Replayer):
     __EXEMPLARS_FILE_TEMPLATE = "exemplars_%d.jsonl"
 
-    def __init__(self, model: Model, exemplars_directory: str, task_id: int):
+    def __init__(self, model: BasicModel, exemplars_directory: str, task_id: int):
         self.__model = model
         self.__exemplars_directory = exemplars_directory
         self.__M = 500
