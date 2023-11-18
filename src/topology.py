@@ -2,7 +2,6 @@ import torch
 from torch import nn as nn
 from torch.nn.modules.loss import _Loss
 
-
 class PytorchTopology(nn.Module):
     """
     Base class implementing Pytorch's nn.Module.
@@ -75,7 +74,6 @@ class MulticlassFNNTopologySmall(PytorchTopology):
         x = self.__relu_1(self.__linear_1(x))
         x = self.__linear_2(x)
         return x
-
 
 class PNNTopology(PytorchTopology):
     def __init__(self, name):
