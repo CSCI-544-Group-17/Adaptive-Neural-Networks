@@ -1,18 +1,19 @@
 import json
 import os
 import time
+
 import torch
 from torch.utils.data import TensorDataset
 
 from src.continual_learner import ContinualLearner
 from src.ewc import EWC
 from src.pnn_model import PNNModel
-from src.replay import RepeatReplayer
+from src.replay import PNNReplayer
 from src.utils import load_tensors
 
 
 class PNNContinualLearner(ContinualLearner):
-    CLASSES = ["dos", "+info", "bypass", "+priv", "other"]
+    CLASSES = ["+info", "bypass", "+priv", "dos"]
     TRAIN_FILE_TEMPLATE = "%s_train_file_%d.json"
     EXEMPLAR_FILE_TEMPLATE = "%s_exemplar_file_%d.json"
     TEST_FILE_TEMPLATE = "%s_test_file.json"
@@ -44,27 +45,29 @@ class PNNContinualLearner(ContinualLearner):
         if self.__repeat_enabled:
             print("REPEAT enabled!")
         scores = []
-        for task_id in range(0, self.__tasks):
-            for batch_index in range(1, 5):
-                print("Task %d..." % task_id)
-                X_train, y_train = self.load_train_data(task_id, batch_index)
+        for subnetwork_index, clazz in enumerate(PNNContinualLearner.CLASSES):
+            for task_id in range(1, self.__tasks + 1):
+                print("Class %s Task %d..." % (clazz, task_id))
+                X_train, y_train = self.load_train_data(subnetwork_index, task_id)
+                if self.__model.should_add(subnetwork_index):
+                    self.__model.add_network()
                 ewc = None
                 similarity = 0.1
-                if self.__repeat_enabled and batch_index > 1:
-                    X_exemplar, y_exemplar = self.load_exemplars(task_id)
-                    ewc = EWC(self.__model.get_topology(), self.__model.get_loss_fn(), X_exemplar, y_exemplar, len(y_exemplar))
-                    similarity = RepeatReplayer.calculate_coefficient(X_train, X_exemplar)
+                if self.__repeat_enabled and task_id > 1:
+                    X_exemplar, y_exemplar = self.load_exemplars(subnetwork_index)
+                    ewc = EWC(self.__model.get_subnetwork(subnetwork_index), self.__model.get_subnetwork(subnetwork_index).get_criterion(), X_exemplar, y_exemplar, len(y_exemplar))
+                    similarity = PNNReplayer.calculate_coefficient(X_train, X_exemplar)
                     X_train = torch.cat((X_train, X_exemplar))
                     y_train = torch.cat((y_train, y_exemplar))
                 train_dataset = TensorDataset(X_train, y_train)
-                self.__model.train(, train_dataset, self.__epochs, self.__batch_size, ewc, similarity)
-                test_file_paths = self.__get_test_file_paths(task_id)
-                X_test, y_test = load_tensors(test_file_paths)
-                score = self.__model.evaluate(X_test, y_test)
-                scores.append({self.KEY_TASK_ID: task_id, self.KEY_ACCURACY: self.__get_metric(score[0]),
-                               self.KEY_F1: self.__get_metric(score[1])})
+                self.__model.train(subnetwork_index, train_dataset, self.__epochs, self.__batch_size, ewc, similarity)
                 if self.__repeat_enabled:
-                    self.update_exemplars(task_id, X_train, y_train)
+                    self.update_exemplars(subnetwork_index, X_train, y_train)
+            test_file_paths = self.__get_test_file_paths(subnetwork_index)
+            X_test, y_test = load_tensors(test_file_paths)
+            score = self.__model.evaluate(X_test, y_test)
+            scores.append({self.KEY_TASK_ID: subnetwork_index, self.KEY_ACCURACY: self.__get_metric(score[0]),
+                           self.KEY_F1: self.__get_metric(score[1])})
         enabled = "enabled" if self.__repeat_enabled else "disabled"
         with open(os.path.join(self.__results_directory, self.RESULT_FILE_TEMPLATE % enabled), "w") as f:
             f.write(json.dumps(scores, indent=1))
@@ -75,14 +78,19 @@ class PNNContinualLearner(ContinualLearner):
         return load_tensors([train_file_path])
 
     def load_exemplars(self, task_id: int):
-        exemplars_file_path = os.path.join(self.__base_exemplars_path, "exemplars_%d.json" % task_id)
+        exemplars_file_path = os.path.join(self.__base_exemplars_path, "exemplars_%d.jsonl" % task_id)
         return load_tensors([exemplars_file_path])
 
     def __get_test_file_paths(self, task_id: int):
         test_file_paths = []
         for i in range(task_id + 1):
             test_file_paths.append(os.path.join(self.__base_embeddings_path, "test/%s_test_file.json" % PNNContinualLearner.CLASSES[i]))
+        print(test_file_paths)
         return test_file_paths
+
+    def update_exemplars(self, subnetwork_index: int, X_train: torch.Tensor, y_train: torch.Tensor):
+        replayer = PNNReplayer(self.__model, self.__base_exemplars_path, subnetwork_index)
+        replayer.update_exemplars(X_train, y_train)
 
     @staticmethod
     def __get_metric(metric):
@@ -91,14 +99,12 @@ class PNNContinualLearner(ContinualLearner):
             return metric.tolist()
         return metric
 
-    def update_exemplars(self, task_id: int, X_train: torch.Tensor, y_train: torch.Tensor):
-        replayer = RepeatReplayer(self.__model, self.__base_exemplars_path, task_id)
-        replayer.update_exemplars(X_train, y_train)
-
 
 def main():
-    learner = PNNContinualLearner(PNNModel(), "../embeddings/pnn", "../exemplars/pnn", "../results/pnn", 10, 100, True,
-                                  4)
+    learner = PNNContinualLearner(PNNModel(), "../large_embeddings/pnn", "../exemplars/pnn", "../results/pnn", 10, 32, True, 4)
+    learner.learn()
+
+    learner = PNNContinualLearner(PNNModel(), "../large_embeddings/pnn", "../exemplars/pnn", "../results/pnn", 10, 32, False, 4)
     learner.learn()
 
 

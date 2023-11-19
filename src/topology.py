@@ -90,7 +90,7 @@ class InitialColumnProgNN(PNNTopology):
         for i in range(len(topology) - 1):
             self.layers.append(nn.Linear(topology[i], topology[i + 1]))
         self.activations = activations
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = nn.CrossEntropyLoss(reduction='none')
         self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
 
     def forward(self, x):
@@ -117,7 +117,7 @@ class ExtensibleColumnProgNN(PNNTopology):
                 self.lateral_connections.append(nn.ModuleList(lateral))
         self.activations = activations
         self.prev_columns = prev_columns
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = nn.CrossEntropyLoss(reduction='none')
         self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
 
     def forward(self, x: torch.Tensor):

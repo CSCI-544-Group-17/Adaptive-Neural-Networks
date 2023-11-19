@@ -14,9 +14,9 @@ def load_tensors(files: List):
     y = []
     for file in files:
         __load_and_append(file, X, y)
-    X = np.array(X)
-    y = np.array(y)
-    X = torch.tensor(X, dtype=torch.float32).clone().detach().to(DEVICE).reshape(-1, 256)
+    X = np.array(X[:100])
+    y = np.array(y[:100])
+    X = torch.tensor(X, dtype=torch.float32).clone().detach().to(DEVICE).reshape(-1, 768)
     y = torch.tensor(y, dtype=torch.long).clone().detach().to(DEVICE).reshape((-1))
     return X, y
 

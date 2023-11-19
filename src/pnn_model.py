@@ -1,3 +1,5 @@
+import json
+
 import torch
 import torch.nn.functional as F
 
@@ -13,10 +15,9 @@ from torch.utils.data import DataLoader, TensorDataset
 class PNNModel:
     def __init__(self):
         self.num_classes = 1
-        self.topology = [256, 100, 64, 25, 2]
+        self.topology = [768, 256, 100, 64, 2]
         self.activations = [F.relu, F.relu, F.relu]
         self.lr = 0.001
-        self.batch_size = 100
         self.subnetworks: List[PNNTopology] = [InitialColumnProgNN(self.topology, self.activations, self.lr)]
 
     def should_add(self, index: int) -> bool:
@@ -42,15 +43,15 @@ class PNNModel:
         for column in self.subnetworks:
             column.eval()
 
-    def train(self, subnetwork_index: int, train_dataset: TensorDataset, epochs: int, ewc=None, similarity=None):
+    def train(self, subnetwork_index: int, train_dataset: TensorDataset, epochs: int, batch_size: int, ewc=None, similarity=None):
         self.set_mode_train()
         column = self.get_subnetwork(subnetwork_index)
         self.__freeze_params(subnetwork_index)
         with tqdm(total=epochs) as bar:
             for epoch in range(epochs):
-                for X_batch, y_batch in DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True):
+                for X_batch, y_batch in DataLoader(train_dataset, batch_size=batch_size, shuffle=True):
                     y_pred = column(X_batch)
-                    loss = column.get_criterion()(y_pred, y_batch)
+                    loss = column.get_criterion()(y_pred, y_batch).mean()
                     if ewc is not None:
                         ewc_loss = ewc.penalty(column)
                         loss += 2000 * ewc_loss * similarity
@@ -81,11 +82,23 @@ class PNNModel:
             if max_idx != -1:
                 tmp[max_idx] = 1
             one_hot_predictions.append(tmp)
+        with open("./ohp.txt", "w") as f:
+            json.dump(one_hot_predictions, f, indent=1)
         true_class_labels = y_test.tolist()
+        with open("./tcl.txt", "w") as f:
+            json.dump(one_hot_predictions, f, indent=1)
         predicted_class_labels = [pred.index(1) if 1 in pred else 0 for pred in one_hot_predictions]
         accuracy = accuracy_score(true_class_labels, predicted_class_labels)
-        f1 = f1_score(true_class_labels, predicted_class_labels, average='macro')
-        return accuracy, f1
+        f1 = f1_score(true_class_labels, predicted_class_labels, average=None)
+        return accuracy, f1.tolist()
+
+    def get_loss(self, subnetwork_index: int, X: torch.Tensor, y: torch.Tensor):
+        column = self.subnetworks[subnetwork_index]
+        self.set_mode_eval()
+        with torch.no_grad():
+            y_pred = column(X)
+            loss = column.get_criterion()(y_pred, y)
+            return loss
 
     def __freeze_params(self, subnetwork_index: int):
         for i in range(self.num_classes):
@@ -301,7 +314,7 @@ model.train(0, embeddings=embeddings0, labels=labels0)
 embeddings = []
 labels = []
 
-with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test_embeddings/dos_test_file.json', 'r') as f:
+with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test/dos_test_file.json', 'r') as f:
     for line in f:
         data = json.loads(line)
         embeddings.append(data['embeddings'][0])
@@ -345,13 +358,13 @@ model.train(1, embeddings=embeddings0, labels=labels0)
 embeddings = []
 labels = []
 
-with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test_embeddings/dos_test_file.json', 'r') as f:
+with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test/dos_test_file.json', 'r') as f:
     for line in f:
         data = json.loads(line)
         embeddings.append(data['embeddings'][0])
         labels.append([data['label'], 0])
 
-with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test_embeddings/+info_test_file.json', 'r') as f:
+with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test/+info_test_file.json', 'r') as f:
     for line in f:
         data = json.loads(line)
         embeddings.append(data['embeddings'][0])
@@ -395,19 +408,19 @@ model.train(2, embeddings=embeddings0, labels=labels0)
 embeddings = []
 labels = []
 
-with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test_embeddings/dos_test_file.json', 'r') as f:
+with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test/dos_test_file.json', 'r') as f:
     for line in f:
         data = json.loads(line)
         embeddings.append(data['embeddings'][0])
         labels.append([data['label'], 0, 0])
 
-with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test_embeddings/+info_test_file.json', 'r') as f:
+with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test/+info_test_file.json', 'r') as f:
     for line in f:
         data = json.loads(line)
         embeddings.append(data['embeddings'][0])
         labels.append([0, data['label'], 0])
 
-with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test_embeddings/bypass_test_file.json', 'r') as f:
+with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test/bypass_test_file.json', 'r') as f:
     for line in f:
         data = json.loads(line)
         embeddings.append(data['embeddings'][0])
@@ -447,25 +460,25 @@ model.train(3, embeddings=embeddings0, labels=labels0)
 embeddings = []
 labels = []
 
-with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test_embeddings/dos_test_file.json', 'r') as f:
+with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test/dos_test_file.json', 'r') as f:
     for line in f:
         data = json.loads(line)
         embeddings.append(data['embeddings'][0])
         labels.append([data['label'], 0, 0, 0])
 
-with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test_embeddings/+info_test_file.json', 'r') as f:
+with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test/+info_test_file.json', 'r') as f:
     for line in f:
         data = json.loads(line)
         embeddings.append(data['embeddings'][0])
         labels.append([0, data['label'], 0, 0])
 
-with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test_embeddings/bypass_test_file.json', 'r') as f:
+with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test/bypass_test_file.json', 'r') as f:
     for line in f:
         data = json.loads(line)
         embeddings.append(data['embeddings'][0])
         labels.append([0, 0, data['label'], 0])
 
-with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test_embeddings/+priv_test_file.json', 'r') as f:
+with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test/+priv_test_file.json', 'r') as f:
     for line in f:
         data = json.loads(line)
         embeddings.append(data['embeddings'][0])
@@ -506,31 +519,31 @@ model.train(4, embeddings=embeddings0, labels=labels0)
 embeddings = []
 labels = []
 
-with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test_embeddings/dos_test_file.json', 'r') as f:
+with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test/dos_test_file.json', 'r') as f:
     for line in f:
         data = json.loads(line)
         embeddings.append(data['embeddings'][0])
         labels.append([data['label'], 0, 0, 0, 0])
 
-with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test_embeddings/+info_test_file.json', 'r') as f:
+with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test/+info_test_file.json', 'r') as f:
     for line in f:
         data = json.loads(line)
         embeddings.append(data['embeddings'][0])
         labels.append([0, data['label'], 0, 0, 0])
 
-with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test_embeddings/bypass_test_file.json', 'r') as f:
+with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test/bypass_test_file.json', 'r') as f:
     for line in f:
         data = json.loads(line)
         embeddings.append(data['embeddings'][0])
         labels.append([0, 0, data['label'], 0, 0])
 
-with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test_embeddings/+priv_test_file.json', 'r') as f:
+with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test/+priv_test_file.json', 'r') as f:
     for line in f:
         data = json.loads(line)
         embeddings.append(data['embeddings'][0])
         labels.append([0, 0, 0, data['label'], 0])
 
-with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test_embeddings/other_test_file.json', 'r') as f:
+with open(f'/content/drive/MyDrive/CSCI544-Project/data/class_wise_embeddings/test/other_test_file.json', 'r') as f:
     for line in f:
         data = json.loads(line)
         embeddings.append(data['embeddings'][0])
