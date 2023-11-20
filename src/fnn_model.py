@@ -1,5 +1,6 @@
 import torch.optim as optim
 from torch.nn.modules.loss import _Loss
+from torch.utils.data import DataLoader, TensorDataset
 from torchmetrics.classification import MulticlassF1Score, MulticlassAccuracy
 from tqdm import tqdm
 
@@ -7,7 +8,7 @@ from ewc import *
 from topology import PytorchTopology
 
 
-class BasicModel:
+class FNNModel:
     """
     Defines the model topology, training and evaluation functions
     """
@@ -26,12 +27,11 @@ class BasicModel:
     def train(self, X_train_tensor: torch.Tensor, y_train_tensor: torch.Tensor, epochs: int, batch_size: int,
               ewc: EWC = None, similarity: float = None):
         self.__topology.train()
+        data_loader = DataLoader(TensorDataset(X_train_tensor, y_train_tensor), batch_size=batch_size, shuffle=True)
         with tqdm(total=epochs) as bar:
             for epoch in range(epochs):
-                for i in range(0, len(X_train_tensor), batch_size):
-                    X_batch = X_train_tensor[i:i + batch_size]
+                for X_batch, y_batch in data_loader:
                     y_pred = self.__topology.forward(X_batch)
-                    y_batch = y_train_tensor[i:i + batch_size]
                     loss = self.__loss_fn(y_pred, y_batch).mean()
                     if ewc is not None:
                         ewc_loss = ewc.penalty(self.__topology)

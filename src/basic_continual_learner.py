@@ -5,19 +5,19 @@ import time
 import torch
 
 from ewc import EWC
-from basic_model import BasicModel
+from fnn_model import FNNModel
 from replay import RepeatReplayer
-from src.continual_learner import ContinualLearner
+from continual_learner import ContinualLearner
 from utils import load_tensors
 
 
-class BasicContinualLearner(ContinualLearner):
+class BaseFNNContinualLearner(ContinualLearner):
     __KEY_TASK_ID = "task_id"
     __KEY_ACCURACY = "accuracy"
     __KEY_F1 = "f1"
     __RESULT_FILE_TEMPLATE = "result_%s.json"
 
-    def __init__(self, model: BasicModel,
+    def __init__(self, model: FNNModel,
                  base_embeddings_path: str,
                  base_exemplars_path: str,
                  results_directory: str,

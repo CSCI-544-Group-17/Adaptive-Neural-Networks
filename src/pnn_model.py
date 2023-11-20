@@ -4,9 +4,9 @@ import torch
 import torch.nn.functional as F
 
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-from src.topology import ExtensibleColumnProgNN
-from src.topology import InitialColumnProgNN
-from src.topology import PNNTopology
+from topology import ExtensibleColumnProgNN
+from topology import InitialColumnProgNN
+from topology import PNNTopology
 from typing import List, Tuple
 from tqdm import tqdm
 from torch.utils.data import DataLoader, TensorDataset

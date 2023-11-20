@@ -5,11 +5,11 @@ import time
 import torch
 from torch.utils.data import TensorDataset
 
-from src.continual_learner import ContinualLearner
-from src.ewc import EWC
-from src.pnn_model import PNNModel
-from src.replay import PNNReplayer
-from src.utils import load_tensors
+from continual_learner import ContinualLearner
+from ewc import EWC
+from pnn_model import PNNModel
+from replay import PNNReplayer
+from utils import load_tensors
 
 
 class PNNContinualLearner(ContinualLearner):
@@ -101,10 +101,10 @@ class PNNContinualLearner(ContinualLearner):
 
 
 def main():
-    learner = PNNContinualLearner(PNNModel(), "../large_embeddings/pnn", "../exemplars/pnn", "../results/pnn", 10, 32, True, 4)
+    learner = PNNContinualLearner(PNNModel(), "../data/pnn", "../exemplars/pnn", "../results/pnn", 10, 32, True, 4)
     learner.learn()
 
-    learner = PNNContinualLearner(PNNModel(), "../large_embeddings/pnn", "../exemplars/pnn", "../results/pnn", 10, 32, False, 4)
+    learner = PNNContinualLearner(PNNModel(), "../data/pnn", "../exemplars/pnn", "../results/pnn", 10, 32, False, 4)
     learner.learn()
 
 
