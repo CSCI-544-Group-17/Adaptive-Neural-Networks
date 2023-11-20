@@ -13,7 +13,7 @@ from utils import load_tensors
 
 
 class PNNContinualLearner(ContinualLearner):
-    CLASSES = ["+info", "bypass", "+priv", "dos"]
+    CLASSES = ["nothing", "dos", "+info", "bypass", "+priv"]
     TRAIN_FILE_TEMPLATE = "%s_train_file_%d.json"
     EXEMPLAR_FILE_TEMPLATE = "%s_exemplar_file_%d.json"
     TEST_FILE_TEMPLATE = "%s_test_file.json"
