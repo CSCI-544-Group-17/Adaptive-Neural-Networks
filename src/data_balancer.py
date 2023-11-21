@@ -161,7 +161,7 @@ class FNNDataBalancer(DataBalancer):
 
 def main():
     classes = ["nothing", "dos", "+info", "bypass", "priv"]
-    balancer = PNNDataBalancer(classes, "../embeddings", "../data/pnn", 300, "nothing", "other")
+    balancer = PNNDataBalancer(classes, "../embeddings", "../data/pnn", 500, "nothing", "other")
     balancer.balance()
 
 
@@ -172,4 +172,4 @@ def main2():
 
 
 if __name__ == '__main__':
-    main2()
+    main()

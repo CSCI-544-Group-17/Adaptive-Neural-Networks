@@ -117,9 +117,7 @@ class PNNReplayer(Replayer):
     def update_exemplars(self, X: torch.Tensor, y: torch.Tensor):
         exemplars = []
         current_exemplars = self.__pick_current(X, y)
-        old_exemplars = self.__pick_old()
         exemplars.extend(current_exemplars)
-        exemplars.extend(old_exemplars)
         with open(os.path.join(self.__exemplars_directory, self.__EXEMPLARS_FILE_TEMPLATE % self.__subnetwork_index), "w") as f:
             for exemplar in exemplars:
                 f.write(json.dumps(exemplar) + "\n")
@@ -144,7 +142,7 @@ class PNNReplayer(Replayer):
                 classes[exemplar.label] = []
             classes[exemplar.label].append(exemplar)
         current_exemplars = []
-        m = 2 * self.__M // (self.__subnetwork_index + 1)
+        m = 2 * self.__M // 4
         for key in classes.keys():
             classes[key] = sorted(classes[key], key=lambda e: e.loss)
             current_exemplars.extend(classes[key][:m])

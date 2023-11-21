@@ -1,52 +1,45 @@
 import json
+from typing import List, Tuple
 
 import torch
 import torch.nn.functional as F
-
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-from topology import ExtensibleColumnProgNN
-from topology import InitialColumnProgNN
-from topology import PNNTopology
-from typing import List, Tuple
-from tqdm import tqdm
 from torch.utils.data import DataLoader, TensorDataset
+from tqdm import tqdm
+
+from topology import InitialColumnProgNN, ExtensibleColumnProgNN, ClassifierProgNN
+from topology import PNNTopology
 
 
 class PNNModel:
     def __init__(self):
         self.num_classes = 1
-        self.topology = [768, 256, 100, 64, 2]
+        self.topology = [256, 100, 64, 25, 2]
         self.activations = [F.relu, F.relu, F.relu]
         self.lr = 0.001
         self.subnetworks: List[PNNTopology] = [InitialColumnProgNN(self.topology, self.activations, self.lr)]
+        # self.relu = ReLU()
+        self.classifier = ClassifierProgNN(self.topology[-1] * self.num_classes, self.num_classes, self.lr)
 
-    def should_add(self, index: int) -> bool:
+    def should_update(self, index: int) -> bool:
         return index >= self.num_classes
 
-    def add_network(self):
+    def update_network(self):
         self.num_classes += 1
         self.subnetworks.append(ExtensibleColumnProgNN(self.topology, self.activations, self.subnetworks, self.lr))
+        self.classifier = ClassifierProgNN(self.topology[-1] * self.num_classes, self.num_classes, self.lr)
+
+    def add_classifier(self):
+        self.classifier = ClassifierProgNN(self.topology[-1] * self.num_classes, self.num_classes, self.lr)
 
     def get_subnetwork(self, index: int) -> PNNTopology:
         return self.subnetworks[index]
 
-    def get_all_parameters(self):
-        # Aggregate parameters from all subnetworks
-        all_params = [param for subnetwork in self.subnetworks for param in subnetwork.parameters()]
-        return all_params
-
-    def set_mode_train(self):
-        for column in self.subnetworks:
-            column.train()
-
-    def set_mode_eval(self):
-        for column in self.subnetworks:
-            column.eval()
-
-    def train(self, subnetwork_index: int, train_dataset: TensorDataset, epochs: int, batch_size: int, ewc=None, similarity=None):
+    def train_subnetwork(self, subnetwork_index: int, X_train: torch.Tensor, y_train: torch.Tensor, epochs: int, batch_size: int, ewc=None, similarity=None):
         self.set_mode_train()
         column = self.get_subnetwork(subnetwork_index)
         self.__freeze_params(subnetwork_index)
+        train_dataset = TensorDataset(X_train, y_train)
         with tqdm(total=epochs) as bar:
             for epoch in range(epochs):
                 for X_batch, y_batch in DataLoader(train_dataset, batch_size=batch_size, shuffle=True):
@@ -58,11 +51,44 @@ class PNNModel:
                     loss.backward()
                     column.optimizer.step()
                     column.optimizer.zero_grad()
-                    bar.set_description("Loss: %f" % loss.item())
-                    bar.update()
+                bar.set_description("Loss: %f" % loss.item())
+                bar.update()
+        self.__unfreeze_params()
+
+    def train_classifier(self, X_train: torch.Tensor, y_train: torch.Tensor, epochs: int, batch_size: int):
+        self.__freeze_params()
+        train_dataset = TensorDataset(X_train, y_train)
+        with tqdm(total=epochs) as bar:
+            for epochs in range(epochs):
+                for X_batch, y_batch in DataLoader(train_dataset, batch_size=batch_size, shuffle=True):
+                    y_preds = self.forward(X_batch)
+                    loss = self.classifier.get_criterion()(y_preds, y_batch).mean()
+                    loss.backward()
+                    self.classifier.optimizer.step()
+                    self.classifier.zero_grad()
+                bar.set_description("Loss: %f" % loss.item())
+                bar.update()
         self.__unfreeze_params()
 
     def evaluate(self, X_test: torch.Tensor, y_test: torch.Tensor):
+        self.set_mode_eval()
+        with torch.no_grad():
+            y_pred = self.forward(X_test)
+            _, predicted = torch.max(y_pred, 1)
+            accuracy = accuracy_score(y_test, predicted)
+            f1 = f1_score(y_test, predicted, average=None)
+            return accuracy, f1.tolist()
+
+    def forward(self, x) -> torch.Tensor:
+        subnetwork_outputs = [subnetwork(x) for subnetwork in self.subnetworks]
+        # Concatenate the outputs from all subnetworks
+        combined_output = torch.cat(subnetwork_outputs, dim=1)
+
+        # Pass the combined output through the output layer
+        final_output = self.classifier.forward(combined_output)
+        return final_output
+
+    def evaluate_subnetwork(self, X_test: torch.Tensor, y_test: torch.Tensor):
         self.set_mode_eval()
         confidence_scores_class_arr = []
         predictions_class_arr = []
@@ -92,6 +118,16 @@ class PNNModel:
         f1 = f1_score(true_class_labels, predicted_class_labels, average=None)
         return accuracy, f1.tolist()
 
+    def set_mode_train(self):
+        for column in self.subnetworks:
+            column.train()
+        self.classifier.train()
+
+    def set_mode_eval(self):
+        for column in self.subnetworks:
+            column.eval()
+        self.classifier.eval()
+
     def get_loss(self, subnetwork_index: int, X: torch.Tensor, y: torch.Tensor):
         column = self.subnetworks[subnetwork_index]
         self.set_mode_eval()
@@ -100,19 +136,16 @@ class PNNModel:
             loss = column.get_criterion()(y_pred, y)
             return loss
 
-    def __freeze_params(self, subnetwork_index: int):
+    def __freeze_params(self, ignore_subnetwork: int = -1):
         for i in range(self.num_classes):
-            if i == subnetwork_index:
-                # Unfreeze the parameters of the modules
+            if i == ignore_subnetwork:
                 for param in self.get_subnetwork(i).parameters():
                     param.requires_grad = True
             else:
-                # Freeze the parameters of the modules
                 for param in self.get_subnetwork(i).parameters():
                     param.requires_grad = False
 
     def __unfreeze_params(self):
-        # Unfreeze all parameters
         for i in range(self.num_classes):
             for param in self.subnetworks[i].parameters():
                 param.requires_grad = True

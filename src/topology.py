@@ -2,6 +2,7 @@ import torch
 from torch import nn as nn
 from torch.nn.modules.loss import _Loss
 
+
 class PytorchTopology(nn.Module):
     """
     Base class implementing Pytorch's nn.Module.
@@ -75,6 +76,7 @@ class MulticlassFNNTopologySmall(PytorchTopology):
         x = self.__linear_2(x)
         return x
 
+
 class PNNTopology(PytorchTopology):
     def __init__(self, name):
         super().__init__(name)
@@ -140,3 +142,22 @@ class ExtensibleColumnProgNN(PNNTopology):
 
     def get_criterion(self) -> _Loss:
         return self.criterion
+
+
+class ClassifierProgNN(PNNTopology):
+    def __init__(self, input_size: int, num_classes: int, lr: float):
+        super().__init__("Final Classifier Layer")
+        self.relu = nn.ReLU()
+        self.classifier = nn.Linear(input_size, num_classes)
+        self.criterion = nn.CrossEntropyLoss(reduction='none')
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # x = self.relu(x)
+        return self.classifier(x)
+
+    def get_criterion(self) -> _Loss:
+        return self.criterion
+
+
+
