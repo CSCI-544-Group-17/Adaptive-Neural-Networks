@@ -104,7 +104,7 @@ def train_output_layer(model, data, target, epochs=50, batch_size=32, lr=0.01):
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     # Make sure the optimizer is now set up for the output layer only
-    optimizer = torch.optim.Adam(model.classifier.parameters(), lr=lr)
+    optimizer = torch.optim.Adam(model.c.parameters(), lr=lr)
 
     criterion = nn.CrossEntropyLoss()
 

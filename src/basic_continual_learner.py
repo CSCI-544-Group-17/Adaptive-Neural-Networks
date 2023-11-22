@@ -14,6 +14,7 @@ from utils import load_tensors
 class BaseFNNContinualLearner(ContinualLearner):
     __KEY_TASK_ID = "task_id"
     __KEY_ACCURACY = "accuracy"
+    __KEY_F1_AVE = "f1_ave"
     __KEY_F1 = "f1"
     __RESULT_FILE_TEMPLATE = "result_%s.json"
 
@@ -55,8 +56,12 @@ class BaseFNNContinualLearner(ContinualLearner):
             test_file_paths = self.__get_test_file_paths(task_id)
             X_test, y_test = load_tensors(test_file_paths)
             score = self.__model.evaluate(X_test, y_test)
-            scores.append({self.__KEY_TASK_ID: task_id, self.__KEY_ACCURACY: self.__get_metric(score[0]),
-                           self.__KEY_F1: self.__get_metric(score[1])})
+            scores.append({
+                self.__KEY_TASK_ID: task_id,
+                self.__KEY_ACCURACY: self.__get_metric(score[0]),
+                self.__KEY_F1_AVE: self.__get_metric(score[1]),
+                self.__KEY_F1: self.__get_metric(score[2])
+            })
             if self.__repeat_enabled:
                 self.update_exemplars(task_id, X_train, y_train)
         enabled = "enabled" if self.__repeat_enabled else "disabled"

@@ -52,7 +52,7 @@ class FNNModel:
             accuracy = acc_metric(y_pred, y_test).mul(100)
             f1_metric = MulticlassF1Score(num_classes=num_classes, average=None)
             f1_score = f1_metric(y_pred, y_test).mul(100)
-            return accuracy, f1_score
+            return accuracy, torch.mean(f1_score), f1_score
 
     def get_loss(self, X: torch.Tensor, y: torch.Tensor, batch_size: int) -> torch.Tensor:
         self.__topology.eval()

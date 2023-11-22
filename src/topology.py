@@ -64,16 +64,20 @@ class MulticlassFNNTopology(PytorchTopology):
 class MulticlassFNNTopologySmall(PytorchTopology):
     def __init__(self, name: str, input_size: int, num_classes: int):
         super().__init__(name)
-        self.__linear_0 = nn.Linear(input_size, 128)
+        # 256, 100, 64, 25, 2
+        self.__linear_0 = nn.Linear(input_size, 100)
         self.__relu_0 = nn.ReLU()
-        self.__linear_1 = nn.Linear(128, 64)
+        self.__linear_1 = nn.Linear(100, 64)
         self.__relu_1 = nn.ReLU()
-        self.__linear_2 = nn.Linear(64, num_classes)
+        self.__linear_2 = nn.Linear(64, 25)
+        self.__relu_2 = nn.ReLU()
+        self.__linear_3 = nn.Linear(25, num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.__relu_0(self.__linear_0(x))
         x = self.__relu_1(self.__linear_1(x))
-        x = self.__linear_2(x)
+        x = self.__relu_2(self.__linear_2(x))
+        x = self.__linear_3(x)
         return x
 
 
@@ -145,7 +149,7 @@ class ExtensibleColumnProgNN(PNNTopology):
 
 
 class ClassifierProgNN(PNNTopology):
-    def __init__(self, input_size: int, num_classes: int, lr: float):
+    def __init__(self, input_size: int, num_classes: int):
         super().__init__("Final Classifier Layer")
         self.relu = nn.ReLU()
         self.classifier = nn.Linear(input_size, num_classes)
@@ -159,5 +163,35 @@ class ClassifierProgNN(PNNTopology):
     def get_criterion(self) -> _Loss:
         return self.criterion
 
+    def add_neuron(self):
+        weights = self.classifier.weight.data
+        biases = self.classifier.bias.data
+        new_r = weights.shape[0] + 1
+        new_c = weights.shape[1] + 2
+        combined_weights = torch.randn(new_r, new_c)
+        combined_weights[:weights.shape[0], :weights.shape[1]] = weights
+        new_r = biases.shape[0] + 1
+        combined_biases = torch.randn(new_r)
+        combined_biases[:biases.shape[0]] = biases
+        self.classifier = nn.Linear(new_c, new_r)
+        self.classifier.weight.data = combined_weights
+        self.classifier.bias.data = combined_biases
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
 
 
+if __name__ == '__main__':
+    weights = torch.zeros(2, 4)
+    # bias = torch.zeros(1, 1)
+
+    print(weights.shape)
+    # print(bias.shape)
+
+    new_r = weights.shape[0] + 1
+    new_c = weights.shape[1] + 2
+
+    print(weights)
+
+    combined_weights = torch.randn(new_r, new_c)
+
+    combined_weights[:weights.shape[0], :weights.shape[1]] = weights
+    print(combined_weights)

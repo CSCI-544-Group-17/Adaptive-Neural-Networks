@@ -3,10 +3,8 @@ import os
 import time
 
 import torch
-from torch.utils.data import TensorDataset
 
 from continual_learner import ContinualLearner
-from ewc import EWC
 from pnn_model import PNNModel
 from replay import PNNReplayer
 from utils import load_tensors, load_indexed_tensors
@@ -19,6 +17,7 @@ class PNNContinualLearner(ContinualLearner):
     TEST_FILE_TEMPLATE = "%s_test_file.json"
     KEY_TASK_ID = "task_id"
     KEY_ACCURACY = "accuracy"
+    KEY_F1_AVE = "f1_ave"
     KEY_F1 = "f1"
     RESULT_FILE_TEMPLATE = "result_%s.json"
 
@@ -58,8 +57,12 @@ class PNNContinualLearner(ContinualLearner):
             self.__model.train_classifier(X_classifier_train, y_classifier_train, self.__epochs, self.__batch_size)
             X_classifier_test, y_classifier_test = self.load_classifier_test_data(subnetwork_index)
             score = self.__model.evaluate(X_classifier_test, y_classifier_test)
-            scores.append({self.KEY_TASK_ID: subnetwork_index, self.KEY_ACCURACY: self.__get_metric(score[0]),
-                           self.KEY_F1: self.__get_metric(score[1])})
+            scores.append({
+                self.KEY_TASK_ID: subnetwork_index,
+                self.KEY_ACCURACY: self.__get_metric(score[0]),
+                self.KEY_F1_AVE: self.__get_metric(score[1]),
+                self.KEY_F1: self.__get_metric(score[2])
+            })
         enabled = "enabled" if self.__repeat_enabled else "disabled"
         with open(os.path.join(self.__results_directory, self.RESULT_FILE_TEMPLATE % enabled), "w") as f:
             f.write(json.dumps(scores, indent=1))
@@ -131,10 +134,10 @@ class PNNContinualLearner(ContinualLearner):
 
 
 def main():
-    learner = PNNContinualLearner(PNNModel(), "../data/pnn", "../exemplars/pnn", "../results/pnn", 20, 32, True)
+    learner = PNNContinualLearner(PNNModel(), "../data/pnn", "../exemplars/pnn", "../results/pnn", 20, 16, True)
     learner.learn()
 
-    learner = PNNContinualLearner(PNNModel(), "../data/pnn", "../exemplars/pnn", "../results/pnn", 20, 32, False)
+    learner = PNNContinualLearner(PNNModel(), "../data/pnn", "../exemplars/pnn", "../results/pnn", 20, 16, False)
     learner.learn()
 
 
